@@ -1,0 +1,204 @@
+#import pyautogui
+import time
+from pynput import mouse, keyboard
+import threading
+from PIL import ImageGrab, ImageOps
+import pyautogui
+from pynput.keyboard import Controller as KeyboardController
+from pynput.mouse import Controller as MouseController
+import webbrowser
+# ایجاد کنترل کننده‌های ماوس و کیبورد
+keyboard_controller = KeyboardController()
+mouse_controller = MouseController()
+actions = []
+recording = False
+def press_key(key):
+    """یک کلید را فشار دهید"""
+    keyboard_controller.press(key)
+    keyboard_controller.release(key)
+
+def move_mouse(x, y):
+    """ماوس را به مکان مشخص شده ببرید"""
+    mouse_controller.position = (x, y)
+
+def click_mouse(button):
+    """یک دکمه ماوس را کلیک کنید"""
+    mouse_controller.press(button)
+    mouse_controller.release(button)
+
+def scroll_mouse(dx, dy):
+    """ماوس را اسکرول کنید"""
+    mouse_controller.scroll(dx, dy)
+
+def custom_condition():
+    """یک شرط خاص را بررسی کنید (ویرایش بر اساس نیاز)"""
+    return True  # به عنوان یک مثال، این تابع همیشه True برمی‌گرداند
+
+stop_capture = False
+
+def capture_screen():
+    global stop_capture
+    while not stop_capture:
+        # گرفتن تصویر از صفحه نمایش
+        screenshot = ImageGrab.grab()
+        # نمایش تصویر به کاربر
+        #screenshot.show()
+        # تاخیر برای به روزرسانی تصاویر
+        time.sleep(0.5)
+    return screenshot
+
+# کنترل کیبرد
+def on_press(key):
+    global actions, recording
+    #print(f"Key {key} pressed.")
+    if key == keyboard.Key.ctrl_l:
+        if recording:
+            # Ctrl+R دوباره فشار داده شده است و ضبط اقدامات متوقف می‌شود
+            #print("Recording stopped.")
+            recording = False
+        else:
+            # Ctrl+R فشار داده شده است و ضبط اقدامات شروع می‌شود
+            #print("Recording started.")
+            recording = True
+            actions = []
+
+    if recording:
+        actions.append(("press", key, time.time()))
+def on_release(key):
+    global actions, recording
+    #print(f"Key {key} released.")
+    if recording:
+        actions.append(("release", key, time.time()))
+# کنترل ماوس
+def on_move(x, y):
+    """print(f"Mouse moved to ({x}, {y})")"""
+
+def on_click(x, y, button, pressed):
+   """ print(f"{'Pressed' if pressed else 'Released'} {button} at ({x}, {y})")
+"""
+def on_scroll(x, y, dx, dy):
+    """print(f"Scrolled {dy} units at ({x}, {y})")"""
+def mouse_listener():
+    last_pos = None
+    while True:
+        current_pos = pyautogui.position()
+        if current_pos != last_pos:
+            #print(f"Mouse moved to ({current_pos.x}, {current_pos.y})")
+            last_pos = current_pos
+        time.sleep(0.01)
+"""______________________________________________________________________"""
+"""def get_input_link():
+    link = input("لطفا لینک مورد نظر را وارد کنید: ")
+    return link"""
+"""
+def get_research_topic():
+    topic = input("لطفا موضوع تحقیق را وارد کنید: ")
+    return topic"""
+
+def open_link(link):
+    webbrowser.open(link)
+
+def main_with_new_features():
+    #link = get_input_link()
+    main()
+
+    # منتظر ماندن تا کاربر دکمه‌های Ctrl+R را فشار دهد
+    while not recording:
+        time.sleep(0.1)
+
+    # ضبط کردن اقدامات کاربر
+    print("لطفا مراحل را انجام دهید و سپس دکمه‌های Ctrl+R را دوباره فشار دهید.")
+    while recording:
+        time.sleep(0.1)
+
+    topic = get_research_topic()
+
+    if not link:
+        print("لطفا لینک را باز کنید و سپس دکمه‌های Alt+S را فشار دهید.")
+        while True:
+            if keyboard.is_pressed('alt+s'):
+                break
+            time.sleep(0.1)
+    else:
+        open_link(link)
+
+    replay_actions()
+"""______________________________________________________________________________"""
+def replay_actions():
+    last_time = actions[0][2]
+
+    for action, key, action_time in actions:
+        time.sleep(action_time - last_time)
+
+        if action == "press":
+            keyboard_controller.press(key)
+        elif action == "release":
+            keyboard_controller.release(key)
+
+        last_time = action_time
+
+    print("Actions replayed.")
+
+
+def keyboard_listener():
+    with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
+        listener.join()
+
+def watch_threads(*threads):
+    global stop_capture
+    while True:
+        all_threads_alive = True
+        for thread in threads:
+            if not thread.is_alive():
+                # در صورتی که یکی از تردها متوقف شود
+                print(f"Thread {thread.name} has stopped.")
+                all_threads_alive = False
+                break
+
+        if not all_threads_alive:
+            # در صورتی که تمام تردها متوقف شوند، برنامه را خاتمه دهید
+            stop_capture = True
+            break
+        time.sleep(1)
+def main():
+    # ایجاد ترد برای capture_screen
+    capture_thread = threading.Thread(target=capture_screen)
+    mouse_thread = threading.Thread(target=mouse_listener)
+    keyboard_thread = threading.Thread(target=keyboard_listener)
+
+    keyboard_thread.start()
+    mouse_thread.start()
+    capture_thread.start()
+
+    # اضافه کردن توابع کنترل اسکرول و کلیک ماوس به گوش دهنده ماوس
+    with mouse.Listener(on_move=on_move, on_click=on_click, on_scroll=on_scroll) as listener:
+
+        # ایجاد گوش دهنده بازدید کننده
+        watcher = threading.Thread(target=watch_threads, args=(keyboard_thread, mouse_thread, capture_thread))
+        watcher.start()
+        listener.join()
+
+    keyboard_thread.join()
+    mouse_thread.join()
+    capture_thread.join()
+
+if __name__ == "__main__":
+    main_with_new_features()
+recording = False
+
+def start_recording(key):
+    global recording
+    if key == Key.ctrl_r:  # Start recording with Ctrl+R
+        recording = True
+
+def stop_recording(key):
+    global recording
+    if key == Key.ctrl_s:  # Stop recording with Ctrl+S
+        recording = False
+
+def get_current_url():
+    # Placeholder function; in a real-world scenario, additional tools or libraries would be needed
+    return 'https://example.com'
+
+def get_section_name():
+    return pyautogui.prompt(text='Enter the name of the clicked section', title='Section Name')
